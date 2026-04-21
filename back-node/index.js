@@ -1,53 +1,54 @@
-require("dotenv").config();
-const express = require("express");
-const { Client } = require("pg");
+require('dotenv').config();
+const express = require('express');
+const { Client } = require('pg');
 
 const app = express();
-const cors = require("cors");
-// Add this right after creating the app:
+const cors = require('cors');
 app.use(cors());
-const PORT = process.env.PORT || 3000;
+
+const PORT = parseInt(process.env.PORT, 10) || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 const DATABASE_URL = process.env.DATABASE_URL;
 
-app.get("/health", async (req, res) => {
-  const healthStatus = {
-    server: "up",
-    database: "unknown",
-  };
+async function buildHealthStatus() {
+    const status = {
+        server: 'up',
+        database: 'unknown',
+        status: 'ok',
+    };
 
-  // 1. Check if the environment variable is configured
-  if (!DATABASE_URL) {
-    healthStatus.database = "unconfigured (DATABASE_URL missing)";
-    return res.status(500).json(healthStatus);
-  }
+    if (!DATABASE_URL) {
+        status.database = 'unconfigured';
+        status.status = 'degraded';
+        status.details = 'DATABASE_URL is missing';
+        return status;
+    }
 
-  // 2. Initialize a new Postgres client
-  const client = new Client({
-    connectionString: DATABASE_URL,
-  });
-
-  try {
-    // 3. test Attempt to connect, execute a simple query, and close the connection
-    await client.connect();
-    await client.query("SELECT 1");
-    await client.end();
-
-    healthStatus.database = "connected";
-    return res.status(200).json(healthStatus);
-  } catch (error) {
-    // If connection fails, return a 503 Service Unavailable with the error
-    healthStatus.database = "disconnected";
-    healthStatus.error_details = error.message;
-
-    // Ensure client is closed even if it failed during query
+    const client = new Client({ connectionString: DATABASE_URL });
     try {
-      await client.end();
-    } catch (e) {}
+        await client.connect();
+        await client.query('SELECT 1');
+        status.database = 'connected';
+        return status;
+    } catch (error) {
+        status.database = 'disconnected';
+        status.status = 'degraded';
+        status.error_details = error.message;
+        return status;
+    } finally {
+        try { await client.end(); } catch (_) {}
+    }
+}
 
-    return res.status(503).json(healthStatus);
-  }
+app.get('/health', async (_req, res) => {
+    res.status(200).json(await buildHealthStatus());
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+app.get('/ready', async (_req, res) => {
+    const status = await buildHealthStatus();
+    res.status(status.database === 'connected' ? 200 : 503).json(status);
+});
+
+app.listen(PORT, HOST, () => {
+    console.log(`Server listening on ${HOST}:${PORT}`);
 });
