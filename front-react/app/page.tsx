@@ -64,7 +64,7 @@ export default async function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 border border-gray-100">
         <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-          System Status Dashboard
+          System Status Dashboard V2
         </h1>
 
         <div className="space-y-4">
