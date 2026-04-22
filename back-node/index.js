@@ -39,7 +39,9 @@ async function buildHealthStatus() {
         try { await client.end(); } catch (_) {}
     }
 }
-
+app.get('/', async (_req, res)  => {
+    res.status(200).json({'version': 'V1'});
+})
 app.get('/health', async (_req, res) => {
     res.status(200).json(await buildHealthStatus());
 });
